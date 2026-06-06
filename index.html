@@ -287,7 +287,20 @@
     document.getElementById('cartBtn').addEventListener('click', () => { document.getElementById('cartOverlay').classList.toggle('open'); document.getElementById('cartDrawer').classList.toggle('open'); });
     document.getElementById('closeCartBtn').addEventListener('click', () => { document.getElementById('cartOverlay').classList.remove('open'); document.getElementById('cartDrawer').classList.remove('open'); });
     document.getElementById('cartOverlay').addEventListener('click', () => { document.getElementById('cartOverlay').classList.remove('open'); document.getElementById('cartDrawer').classList.remove('open'); });
-    document.getElementById('contactForm').addEventListener('submit', function(e) { e.preventDefault(); showToast('Pesan terkirim!'); this.reset(); });
+    document.getElementById('contactForm').addEventListener('submit', async function(e) { 
+  e.preventDefault(); 
+  const name = this.querySelector('input[type="text"]').value;
+  const email = this.querySelector('input[type="email"]').value;
+  const message = this.querySelector('textarea').value;
+  
+  if(db) {
+    const { error } = await db.from('messages').insert([{ name: name, email: email, message: message }]);
+    if(!error) { showToast('Pesan berhasil terkirim!'); this.reset(); }
+    else { showToast('Gagal mengirim pesan.'); }
+  } else {
+    showToast('Pesan terkirim (Mode Offline)'); this.reset();
+  }
+});
     
     function observeReveals() { const o=new IntersectionObserver((e)=>{e.forEach(x=>{if(x.isIntersecting){x.target.classList.add('visible');o.unobserve(x.target);}});},{threshold:0.1}); document.querySelectorAll('.reveal:not(.visible)').forEach(el=>o.observe(el)); }
 
