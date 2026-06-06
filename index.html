@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VELOS — Premium Lifestyle Store</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: 'DM Sans', sans-serif; background: #0C0C0C; color: #F5F0E8; }
+    h1, h2, h3, h4, h5, h6 { font-family: 'Space Grotesk', sans-serif; }
+    :root { --accent: #D4A853; --accent-hover: #E8BC6A; --bg-card: #1C1C1C; --border: #2A2A2A; --muted: #8A8578; }
+    .reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .blob { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.3; animation: float 12s ease-in-out infinite alternate; }
+    @keyframes float { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(30px, -40px) scale(1.1); } }
+    .prod-card { transition: transform 0.4s ease, box-shadow 0.4s ease; }
+    .prod-card:hover { transform: translateY(-8px); box-shadow: 0 20px 50px rgba(212,168,83,0.1); }
+    .prod-card img { transition: transform 0.6s ease; }
+    .prod-card:hover img { transform: scale(1.08); }
+    .btn-gold { background: var(--accent); color: #0C0C0C; font-weight: 600; padding: 12px 24px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.3s; font-family: 'Space Grotesk'; }
+    .btn-gold:hover { background: var(--accent-hover); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(212,168,83,0.3); }
+    .cart-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+    .cart-overlay.open { opacity: 1; pointer-events: all; }
+    .cart-drawer { position: fixed; top: 0; right: 0; width: 400px; max-width: 90vw; height: 100vh; background: #161616; border-left: 1px solid var(--border); z-index: 101; transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.16,1,0.3,1); display: flex; flex-direction: column; }
+    .cart-drawer.open { transform: translateX(0); }
+    .admin-panel { position: fixed; bottom: 80px; left: 20px; width: 360px; max-height: 75vh; overflow-y: auto; background: #161616; border: 1px solid var(--border); border-radius: 16px; padding: 24px; z-index: 200; box-shadow: 0 20px 50px rgba(0,0,0,0.8); transform: scale(0.9) translateY(20px); opacity: 0; pointer-events: none; transition: all 0.3s ease; transform-origin: bottom left; }
+    .admin-panel.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: all; }
+    .adm-input { width: 100%; padding: 8px 12px; background: #1C1C1C; border: 1px solid var(--border); color: #F5F0E8; border-radius: 6px; font-size: 13px; outline: none; margin-bottom: 12px; }
+    .adm-input:focus { border-color: var(--accent); }
+    .db-status { position: fixed; top: 84px; right: 20px; z-index: 50; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 8px; background: #161616; border: 1px solid var(--border); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot.online { background: #4ADE80; box-shadow: 0 0 8px #4ADE80; }
+    .dot.offline { background: #F87171; box-shadow: 0 0 8px #F87171; }
+  </style>
+</head>
+<body class="overflow-x-hidden">
+
+  <div class="db-status"><div id="dbDot" class="dot offline"></div><span id="dbText" style="color: var(--muted);">Memuat Database...</span></div>
+
+  <button id="adminBtn" class="fixed bottom-6 left-6 z-[201] w-12 h-12 bg-[#1C1C1C] border border-[#2A2A2A] rounded-full flex items-center justify-center text-[#8A8578] hover:text-[#D4A853] hover:border-[#D4A853] transition-all shadow-lg cursor-pointer"><i class="fa-solid fa-gear text-lg"></i></button>
+  <div id="adminPanel" class="admin-panel">
+    <h3 class="font-display font-bold text-lg mb-1">Control Panel</h3>
+    <p class="text-xs text-[#8A8578] mb-4">Ubah teks, lalu klik Simpan. Tampilan langsung berubah.</p>
+    <div class="border-b border-[#2A2A2A] pb-4 mb-4">
+      <label class="text-xs font-bold text-[#8A8578] uppercase tracking-wider block mb-2">Materi Digital</label>
+      <input id="adm-title" class="adm-input" value="Kuasai Keahlian Baru dengan Materi Digital Premium">
+      <textarea id="adm-desc" class="adm-input" rows="3" style="resize:none;">Dapatkan akses ke kurasi materi pembelajaran digital berkualitas tinggi. Setiap produk dirancang oleh praktisi berpengalaman untuk memastikan kamu tidak hanya belajar teori, tetapi juga bisa langsung menerapkan dalam proyek nyata.</textarea>
+    </div>
+    <div class="border-b border-[#2A2A2A] pb-4 mb-4">
+      <label class="text-xs font-bold text-[#8A8578] uppercase tracking-wider block mb-2">Info Kontak</label>
+      <input id="adm-email" class="adm-input" value="hello@velos.id">
+      <input id="adm-phone" class="adm-input" value="+62 812 3456 7890">
+      <input id="adm-address" class="adm-input" value="Jl. Sudirman No. 88, Jakarta Selatan">
+    </div>
+    <button id="admSaveBtn" class="btn-gold w-full text-center text-sm">Simpan & Update Tampilan</button>
+  </div>
+
+  <nav class="fixed top-0 w-full z-40 bg-[#0C0C0C]/90 backdrop-blur-md border-b border-[#2A2A2A]">
+    <div class="max-w-7xl mx-auto px-6 flex items-center justify-between h-20">
+      <a href="#" class="flex items-center gap-2"><div class="w-8 h-8 bg-[#D4A853] rounded-lg flex items-center justify-center"><i class="fa-solid fa-bolt text-[#0C0C0C] text-sm"></i></div><span class="font-display font-bold text-xl">VELOS</span></a>
+      <div class="hidden md:flex items-center gap-8 text-sm font-medium text-[#8A8578]">
+        <a href="#produk" class="hover:text-[#D4A853] transition-colors">Produk</a><a href="#digital" class="hover:text-[#D4A853] transition-colors">Materi Digital</a><a href="#tentang" class="hover:text-[#D4A853] transition-colors">Tentang</a><a href="#kontak" class="hover:text-[#D4A853] transition-colors">Kontak</a>
+      </div>
+      <button id="cartBtn" class="relative text-[#8A8578] hover:text-[#D4A853] transition-colors"><i class="fa-solid fa-bag-shopping text-lg"></i><span id="cartCount" class="absolute -top-2 -right-2 w-5 h-5 bg-[#D4A853] text-[#0C0C0C] text-[10px] font-bold rounded-full flex items-center justify-center hidden">0</span></button>
+    </div>
+  </nav>
+
+  <header class="relative min-h-screen flex items-center overflow-hidden pt-20">
+    <div class="blob w-[500px] h-[500px] top-[-100px] right-[-100px] bg-[#D4A853]"></div>
+    <div class="blob w-[400px] h-[400px] bottom-[-50px] left-[-100px] bg-[#8B5E3C]" style="animation-delay: -4s;"></div>
+    <div class="relative z-10 max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
+      <div>
+        <div class="reveal inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold tracking-wider mb-8 bg-[#D4A853]/10 text-[#D4A853] border border-[#D4A853]/20">KOLEKSI TERBARU 2025</div>
+        <h1 class="reveal font-display text-5xl sm:text-7xl font-bold leading-none mb-6">Gaya yang<br><span class="text-[#D4A853]">Melampaui</span><br>Zaman</h1>
+        <p class="reveal text-lg text-[#8A8578] mb-10 max-w-md">Temukan koleksi premium yang memadukan keanggunan klasik dengan sentuhan kontemporer.</p>
+        <a href="#produk" class="reveal btn-gold inline-flex items-center gap-2">Jelajahi Koleksi <i class="fa-solid fa-arrow-right text-sm"></i></a>
+      </div>
+      <div class="reveal hidden lg:block relative"><div class="rounded-2xl overflow-hidden border border-[#2A2A2A]"><img src="https://picsum.photos/seed/velos-hero/600/700.jpg" alt="Hero" class="w-full object-cover aspect-[6/7]"></div></div>
+    </div>
+  </header>
+
+  <section id="digital" class="py-24 relative">
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-[#D4A853] opacity-[0.06] blur-[140px] pointer-events-none"></div>
+    <div class="max-w-4xl mx-auto px-6 relative z-10">
+      <div class="reveal bg-white text-[#1A1A1A] rounded-2xl p-8 sm:p-12 lg:p-14 shadow-2xl shadow-black/50 relative overflow-hidden">
+        <div class="absolute top-[-60px] right-[-60px] w-48 h-48 bg-[#D4A853]/10 rounded-full pointer-events-none"></div>
+        <div class="relative z-10">
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wider mb-6 bg-[#D4A853]/10 text-[#B8922F]"><i class="fa-solid fa-graduation-cap"></i> PRODUK DIGITAL</div>
+          <h2 id="dp-title" class="font-display text-3xl sm:text-4xl font-bold leading-tight mb-4">Kuasai Keahlian Baru dengan <span class="text-[#B8922F]">Materi Digital Premium</span></h2>
+          <p id="dp-desc" class="text-base sm:text-lg leading-relaxed mb-3 text-[#4A4A4A]">Dapatkan akses ke kurasi materi pembelajaran digital berkualitas tinggi. Setiap produk dirancang oleh praktisi berpengalaman untuk memastikan kamu tidak hanya belajar teori, tetapi juga bisa langsung menerapkan dalam proyek nyata.</p>
+          <p class="text-sm leading-relaxed mb-8 text-[#8A8A8A]">Materi tersedia dalam format e-book interaktif, video tutorial, dan template siap pakai. Update gratis selamanya untuk setiap pembelian.</p>
+          <div class="w-full h-px mb-8 bg-gradient-to-r from-transparent via-[#E0D6C0] to-transparent"></div>
+          <div class="grid sm:grid-cols-2 gap-x-8 mb-10">
+            <div class="flex items-start gap-4 py-4 border-b border-[#F0ECE3]"><div class="w-10 h-10 rounded-lg bg-[#D4A853]/10 text-[#B8922F] flex items-center justify-center shrink-0"><i class="fa-solid fa-book-open"></i></div><div><h4 class="font-display font-semibold text-sm">E-Book Interaktif</h4><p class="text-xs text-[#8A8A8A] mt-1">Materi mendalam dengan contoh kode</p></div></div>
+            <div class="flex items-start gap-4 py-4 border-b border-[#F0ECE3]"><div class="w-10 h-10 rounded-lg bg-[#D4A853]/10 text-[#B8922F] flex items-center justify-center shrink-0"><i class="fa-solid fa-play-circle"></i></div><div><h4 class="font-display font-semibold text-sm">Video Tutorial HD</h4><p class="text-xs text-[#8A8A8A] mt-1">Penjelasan visual jernih</p></div></div>
+            <div class="flex items-start gap-4 py-4 border-b border-[#F0ECE3]"><div class="w-10 h-10 rounded-lg bg-[#D4A853]/10 text-[#B8922F] flex items-center justify-center shrink-0"><i class="fa-solid fa-file-code"></i></div><div><h4 class="font-display font-semibold text-sm">Template Siap Pakai</h4><p class="text-xs text-[#8A8A8A] mt-1">Template profesional</p></div></div>
+            <div class="flex items-start gap-4 py-4 border-b border-[#F0ECE3]"><div class="w-10 h-10 rounded-lg bg-[#D4A853]/10 text-[#B8922F] flex items-center justify-center shrink-0"><i class="fa-solid fa-arrows-rotate"></i></div><div><h4 class="font-display font-semibold text-sm">Update Gratis</h4><p class="text-xs text-[#8A8A8A] mt-1">Selamanya termasuk update</p></div></div>
+          </div>
+          <a href="#produk" class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg font-display font-semibold text-sm bg-[#B8922F] text-white hover:bg-[#9A7B22] transition-colors">Lihat Koleksi Digital <i class="fa-solid fa-arrow-right text-xs"></i></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="produk" class="py-24">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="reveal text-center mb-14">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wider mb-4 bg-[#D4A853]/10 text-[#D4A853]">KOLEKSI ANDALAN</div>
+        <h2 class="font-display text-4xl lg:text-5xl font-bold">Produk Unggulan</h2>
+      </div>
+      <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="col-span-full text-center text-[#8A8578] py-20">Memuat produk dari database...</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tentang" class="py-24 bg-[#161616]">
+    <div class="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
+      <div class="reveal">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wider mb-4 bg-[#D4A853]/10 text-[#D4A853]">MENGAPA VELOS</div>
+        <h2 class="font-display text-3xl lg:text-5xl font-bold mb-6">Standar Baru dalam Gaya Hidup Premium</h2>
+        <p class="text-[#8A8578] leading-relaxed mb-10">VELOS lahir dari keyakinan bahwa setiap individu berhak menikmati kualitas premium tanpa harus berkompromi.</p>
+        <div class="grid grid-cols-2 gap-6">
+          <div class="p-5 rounded-xl bg-[#1C1C1C] border border-[#2A2A2A]"><div class="w-10 h-10 rounded-lg bg-[#D4A853]/10 text-[#D4A853] flex items-center justify-center mb-3"><i class="fa-solid fa-gem"></i></div><h4 class="font-display font-semibold text-sm mb-1">Bahan Premium</h4><p class="text-xs text-[#8A8578]">Material pilihan grade A</p></div>
+          <div class="p-5 rounded-xl bg-[#1C1C1C] border border-[#2A2A2A]"><div class="w-10 h-10 rounded-lg bg-[#D4A853]/10 text-[#D4A853] flex items-center justify-center mb-3"><i class="fa-solid fa-shield-halved"></i></div><h4 class="font-display font-semibold text-sm mb-1">Garansi Resmi</h4><p class="text-xs text-[#8A8578]">Garansi 1 tahun</p></div>
+        </div>
+      </div>
+      <div class="reveal hidden lg:block"><div class="rounded-2xl overflow-hidden border border-[#2A2A2A]"><img src="https://picsum.photos/seed/velos-about/600/700.jpg" alt="Tentang" class="w-full object-cover aspect-[6/7]"></div></div>
+    </div>
+  </section>
+
+  <section id="kontak" class="py-24">
+    <div class="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16">
+      <div class="reveal">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wider mb-4 bg-[#D4A853]/10 text-[#D4A853]">HUBUNGI KAMI</div>
+        <h2 class="font-display text-3xl lg:text-4xl font-bold mb-4">Ada Pertanyaan?</h2>
+        <p class="text-[#8A8578] mb-8">Kirimkan pesan dan kami akan merespons dalam 24 jam.</p>
+        <div class="flex flex-col gap-5">
+          <div class="flex items-center gap-4"><div class="w-12 h-12 rounded-lg bg-[#D4A853]/10 text-[#D4A853] flex items-center justify-center"><i class="fa-solid fa-envelope"></i></div><div><span class="text-xs text-[#8A8578] block">Email</span><span id="ct-email" class="text-sm font-medium">hello@velos.id</span></div></div>
+          <div class="flex items-center gap-4"><div class="w-12 h-12 rounded-lg bg-[#D4A853]/10 text-[#D4A853] flex items-center justify-center"><i class="fa-solid fa-phone"></i></div><div><span class="text-xs text-[#8A8578] block">Telepon</span><span id="ct-phone" class="text-sm font-medium">+62 812 3456 7890</span></div></div>
+          <div class="flex items-center gap-4"><div class="w-12 h-12 rounded-lg bg-[#D4A853]/10 text-[#D4A853] flex items-center justify-center"><i class="fa-solid fa-location-dot"></i></div><div><span class="text-xs text-[#8A8578] block">Alamat</span><span id="ct-address" class="text-sm font-medium">Jl. Sudirman No. 88, Jakarta Selatan</span></div></div>
+        </div>
+      </div>
+      <div class="reveal">
+        <form id="contactForm" class="p-8 rounded-2xl bg-[#1C1C1C] border border-[#2A2A2A]">
+          <div class="grid sm:grid-cols-2 gap-4 mb-4">
+            <input type="text" placeholder="Nama" required class="w-full px-4 py-3 rounded-lg text-sm bg-[#161616] border border-[#2A2A2A] text-[#F5F0E8] outline-none focus:border-[#D4A853]">
+            <input type="email" placeholder="Email" required class="w-full px-4 py-3 rounded-lg text-sm bg-[#161616] border border-[#2A2A2A] text-[#F5F0E8] outline-none focus:border-[#D4A853]">
+          </div>
+          <textarea rows="4" placeholder="Pesan" required class="w-full px-4 py-3 rounded-lg text-sm bg-[#161616] border border-[#2A2A2A] text-[#F5F0E8] outline-none focus:border-[#D4A853] resize-none mb-6"></textarea>
+          <button type="submit" class="btn-gold w-full text-center">Kirim Pesan</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <div id="cartOverlay" class="cart-overlay"></div>
+  <aside id="cartDrawer" class="cart-drawer">
+    <div class="flex items-center justify-between p-6 border-b border-[#2A2A2A]"><h3 class="font-display font-semibold text-lg">Keranjang</h3><button id="closeCartBtn" class="text-[#8A8578] hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button></div>
+    <div id="cartItems" class="flex-1 overflow-y-auto p-6"><div class="flex flex-col items-center justify-center h-full text-center text-[#8A8578]"><i class="fa-solid fa-bag-shopping text-4xl mb-4 text-[#2A2A2A]"></i><p class="text-sm">Keranjang masih kosong</p></div></div>
+    <div class="p-6 border-t border-[#2A2A2A]"><div class="flex justify-between mb-4"><span class="font-semibold">Total</span><span id="cartTotal" class="font-bold text-[#D4A853]">Rp 0</span></div><button id="checkoutBtn" class="btn-gold w-full text-center">Checkout</button></div>
+  </aside>
+  <div id="toasts" class="fixed bottom-6 right-6 z-[300] flex flex-col gap-3"></div>
+
+  <script>
+    // ==========================================
+    // KONFIGURASI DATABASE SUPABASE ANDA
+    // ==========================================
+    const SUPABASE_URL = 'https://jtouurgvhxwvdrbldzlf.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0b3V1cmd2aHh3dmRyYmxkemxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MzY5MDksImV4cCI6MjA5NjMxMjkwOX0.djJZ_jb0McLDIJSSJwUMnXoed9QrJCt0BPuLLBA2n9k';
+
+    let db = null;
+    try { db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) { console.error("Supabase gagal dimuat", e); }
+
+    const localProducts = [
+      { id: 1, name: 'Avant-Garde Leather Jacket', price: 4250000, category: 'Jacket', img: 'velos-p1', description: 'Jaket kulit premium.' },
+      { id: 2, name: 'Retro Runner Sneakers', price: 1890000, category: 'Sneakers', img: 'velos-p2', description: 'Sneaker retro modern.' },
+      { id: 3, name: 'Titanium Chronograph Watch', price: 8750000, category: 'Watches', img: 'velos-p3', description: 'Jam tangan titanium.' },
+      { id: 4, name: 'Waxed Canvas Backpack', price: 1450000, category: 'Bags', img: 'velos-p4', description: 'Tas ransel anti-air.' },
+      { id: 5, name: 'Carbon Fiber Card Holder', price: 680000, category: 'Accessories', img: 'velos-p5', description: 'Card holder ringan.' }
+    ];
+
+    let products = [];
+    let cart = [];
+    const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
+
+    async function checkDbStatus() {
+      if (!db) { updateDbUI(false); return; }
+      try { const { error } = await db.from('products').select('id').limit(1); if (error) throw error; updateDbUI(true); } 
+      catch(e) { updateDbUI(false); }
+    }
+
+    function updateDbUI(isOnline) {
+      const dot = document.getElementById('dbDot'), text = document.getElementById('dbText');
+      if (isOnline) { dot.className = 'dot online'; text.textContent = 'Database Online'; text.style.color = '#4ADE80'; }
+      else { dot.className = 'dot offline'; text.textContent = 'Database Offline (Lokal)'; text.style.color = '#F87171'; }
+    }
+
+    async function loadProducts() {
+      if (!db) { products = localProducts; renderProducts(); return; }
+      try { const { data, error } = await db.from('products').select('*').order('id', true); if (error) throw error; if (data && data.length > 0) products = data; else products = localProducts; } 
+      catch(e) { console.error(e); products = localProducts; }
+      renderProducts();
+    }
+
+    async function saveOrder(orderData) {
+      if (!db) return false;
+      try { const { data, error } = await db.from('orders').insert([orderData]); if (error) throw error; return true; } 
+      catch(e) { console.error(e); return false; }
+    }
+
+    function renderProducts() {
+      const grid = document.getElementById('productGrid'); if (!grid) return;
+      grid.innerHTML = products.map(p => `
+        <div class="prod-card reveal bg-[#1C1C1C] border border-[#2A2A2A] rounded-xl overflow-hidden">
+          <div class="relative overflow-hidden cursor-pointer" onclick="openModal(${p.id})" style="aspect-ratio: 4/5;">
+            <img src="https://picsum.photos/seed/${p.img}/400/500.jpg" alt="${p.name}" class="w-full h-full object-cover">
+          </div>
+          <div class="p-4">
+            <div class="text-xs text-[#8A8578] mb-1">${p.category}</div>
+            <h3 class="font-display font-semibold text-sm mb-3 h-10 leading-tight">${p.name}</h3>
+            <div class="flex items-center justify-between">
+              <span class="font-display font-bold text-[#D4A853]">${formatRp(p.price)}</span>
+              <button onclick="addToCart(${p.id})" class="w-9 h-9 rounded-lg bg-[#D4A853]/10 text-[#D4A853] flex items-center justify-center hover:bg-[#D4A853] hover:text-[#0C0C0C] transition-all"><i class="fa-solid fa-plus text-xs"></i></button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+      observeReveals();
+    }
+
+    function addToCart(id) {
+      const item = products.find(p => p.id === id); if (!item) return;
+      const exist = cart.find(c => c.id === id);
+      if (exist) exist.qty++; else cart.push({ ...item, qty: 1 });
+      updateCartUI(); showToast(`${item.name} ditambahkan ke keranjang`);
+    }
+
+    function updateCartUI() {
+      const totalItems = cart.reduce((s, i) => s + i.qty, 0), totalPrice = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+      const countEl = document.getElementById('cartCount');
+      if (totalItems > 0) { countEl.classList.remove('hidden'); countEl.textContent = totalItems; } else { countEl.classList.add('hidden'); }
+      document.getElementById('cartTotal').textContent = formatRp(totalPrice);
+      const itemsEl = document.getElementById('cartItems');
+      if (cart.length === 0) { itemsEl.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-center text-[#8A8578]"><i class="fa-solid fa-bag-shopping text-4xl mb-4 text-[#2A2A2A]"></i><p class="text-sm">Keranjang masih kosong</p></div>`; }
+      else { itemsEl.innerHTML = cart.map(i => `<div class="flex gap-4 mb-5 pb-5 border-b border-[#2A2A2A]"><img src="https://picsum.photos/seed/${i.img}/80/100.jpg" class="w-16 h-20 rounded-lg object-cover shrink-0"><div class="flex-1 min-w-0"><div class="text-sm font-semibold mb-1 truncate">${i.name}</div><div class="text-sm font-bold text-[#D4A853] mb-2">${formatRp(i.price)}</div><div class="flex items-center gap-2"><button onclick="changeQty(${i.id}, -1)" class="w-7 h-7 border border-[#2A2A2A] rounded text-[#8A8578] flex items-center justify-center text-xs"><i class="fa-solid fa-minus"></i></button><span class="text-sm font-semibold w-6 text-center">${i.qty}</span><button onclick="changeQty(${i.id}, 1)" class="w-7 h-7 border border-[#2A2A2A] rounded text-[#8A8578] flex items-center justify-center text-xs"><i class="fa-solid fa-plus"></i></button></div></div><button onclick="removeFromCart(${i.id})" class="text-[#8A8578] hover:text-red-400 text-xs self-start mt-1"><i class="fa-solid fa-trash-can"></i></button></div>`).join(''); }
+    }
+
+    function changeQty(id, delta) { const item = cart.find(c => c.id === id); if (!item) return; item.qty += delta; if (item.qty <= 0) removeFromCart(id); else updateCartUI(); }
+    function removeFromCart(id) { cart = cart.filter(c => c.id !== id); updateCartUI(); }
+
+    function openModal(id) {
+      const p = products.find(x => x.id === id); if(!p) return;
+      const modal = document.createElement('div');
+      modal.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm z-[150] flex items-center justify-center p-4';
+      modal.onclick = (e) => { if(e.target === modal) modal.remove(); document.body.style.overflow = ''; };
+      modal.innerHTML = `<div class="bg-[#161616] border border-[#2A2A2A] rounded-2xl max-w-4xl w-full max-h-[85vh] overflow-y-auto grid md:grid-cols-2 shadow-2xl"><img src="https://picsum.photos/seed/${p.img}/600/750.jpg" class="w-full h-full object-cover md:rounded-l-2xl" style="aspect-ratio: 4/5;"><div class="p-8 flex flex-col"><button onclick="this.closest('.fixed').remove(); document.body.style.overflow = '';" class="self-end text-[#8A8578] hover:text-white text-xl mb-4"><i class="fa-solid fa-xmark"></i></button><span class="text-xs text-[#8A8578] mb-1">${p.category}</span><h3 class="font-display text-2xl font-bold mb-4">${p.name}</h3><div class="font-display text-2xl font-bold text-[#D4A853] mb-6">${formatRp(p.price)}</div><p class="text-sm text-[#8A8578] leading-relaxed mb-8">${p.description}</p><button onclick="addToCart(${p.id}); this.closest('.fixed').remove(); document.body.style.overflow = '';" class="btn-gold mt-auto flex items-center justify-center gap-2"><i class="fa-solid fa-bag-shopping text-sm"></i> Tambah ke Keranjang</button></div></div>`;
+      document.body.appendChild(modal); document.body.style.overflow = 'hidden';
+    }
+
+    document.getElementById('checkoutBtn').addEventListener('click', async () => {
+      if(cart.length === 0) { showToast('Keranjang masih kosong'); return; }
+      const totalPrice = cart.reduce((s, i) => s + i.price * i.qty, 0);
+      showToast('Memproses checkout...');
+      const orderData = { customer_name: 'Guest User', customer_email: 'guest@velos.id', items: JSON.stringify(cart.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price }))), total_amount: totalPrice };
+      const success = await saveOrder(orderData);
+      if(success) { showToast('Checkout sukses! Pesanan tersimpan di database.'); } else { showToast('Checkout disimpan lokal (Mode Offline).'); }
+      cart = []; updateCartUI();
+      document.getElementById('cartOverlay').classList.remove('open'); document.getElementById('cartDrawer').classList.remove('open');
+    });
+
+    function showToast(msg) { const c=document.getElementById('toasts'),t=document.createElement('div');t.className='bg-[#1C1C1C] border border-[#2A2A2A] border-l-4 border-l-[#D4A853] px-5 py-3 rounded-lg shadow-xl text-sm flex items-center gap-3';t.innerHTML=`<i class="fa-solid fa-check-circle text-[#D4A853]"></i><span>${msg}</span>`;c.appendChild(t);setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300)},2500); }
+    
+    document.getElementById('adminBtn').addEventListener('click', () => document.getElementById('adminPanel').classList.toggle('open'));
+    document.getElementById('admSaveBtn').addEventListener('click', () => { 
+      const t = document.getElementById('adm-title').value, d = document.getElementById('adm-desc').value;
+      if(t) document.getElementById('dp-title').innerHTML = t.replace('Materi Digital Premium', '<span class="text-[#B8922F]">Materi Digital Premium</span>');
+      if(d) document.getElementById('dp-desc').textContent = d;
+      document.getElementById('ct-email').textContent = document.getElementById('adm-email').value;
+      document.getElementById('ct-phone').textContent = document.getElementById('adm-phone').value;
+      document.getElementById('ct-address').textContent = document.getElementById('adm-address').value;
+      document.getElementById('adminPanel').classList.remove('open'); showToast('Konten diperbarui!'); 
+    });
+    document.getElementById('cartBtn').addEventListener('click', () => { document.getElementById('cartOverlay').classList.toggle('open'); document.getElementById('cartDrawer').classList.toggle('open'); });
+    document.getElementById('closeCartBtn').addEventListener('click', () => { document.getElementById('cartOverlay').classList.remove('open'); document.getElementById('cartDrawer').classList.remove('open'); });
+    document.getElementById('cartOverlay').addEventListener('click', () => { document.getElementById('cartOverlay').classList.remove('open'); document.getElementById('cartDrawer').classList.remove('open'); });
+    document.getElementById('contactForm').addEventListener('submit', function(e) { e.preventDefault(); showToast('Pesan terkirim!'); this.reset(); });
+    
+    function observeReveals() { const o=new IntersectionObserver((e)=>{e.forEach(x=>{if(x.isIntersecting){x.target.classList.add('visible');o.unobserve(x.target);}});},{threshold:0.1}); document.querySelectorAll('.reveal:not(.visible)').forEach(el=>o.observe(el)); }
+
+    document.addEventListener('DOMContentLoaded', () => { checkDbStatus(); loadProducts(); updateCartUI(); observeReveals(); });
+  </script>
+</body>
+</html>
